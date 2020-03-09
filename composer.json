@@ -1,0 +1,34 @@
+{
+    "name": "churakovmike/yii2-free-kassa",
+    "type": "yii2-extension",
+    "description": "Yii2 extension for Free Kassa",
+    "keywords": [
+        "yii2",
+        "yii2 extension",
+        "free kassa"
+    ],
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "authors": [
+        {
+            "name": "Churakov Mike",
+            "email": "churakovmike@mail.ru",
+            "homepage": "https://github.com/Churakovmike/yii2-free-kassa",
+            "role": "developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0",
+        "yiisoft/yii2": "~2"
+    },
+    "require-dev": {
+    },
+    "autoload": {
+        "psr-4": {
+            "ChurakovMike\\Freekassa\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
