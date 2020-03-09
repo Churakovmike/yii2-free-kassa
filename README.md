@@ -2,7 +2,7 @@
 Yii2 free kassa extension.
 This packages provide to you forms, action filters, and component
 
-#Getting started
+# Getting started
 ## install
 The package is available on packagist.
 ```php
