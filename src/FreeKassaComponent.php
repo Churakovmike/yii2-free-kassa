@@ -6,6 +6,7 @@ use ChurakovMike\Freekassa\exceptions\WrongSignatureException;
 use yii\base\Component;
 use yii\httpclient\Client;
 use yii\httpclient\CurlTransport;
+use \Exception;
 
 /**
  * Class FreeKassaComponent.
@@ -90,6 +91,13 @@ class FreeKassaComponent extends Component
         CURRENCY_MOBILE_MEGAFON_URAL_FILIAL = 141,
         CURRENCY_MOBILE_MEGAFON_DALNIYVOSTOK_FILIAL = 142,
         CURRENCY_MOBILE_MEGAFON_CENTRAL_FILIAL = 143;
+
+    /**
+     * List of available actions.
+     */
+    const
+        ACTION_GET_BALANCE = 'get_balance',
+        ACTION_GET_ORDER = 'check_order_status';
 
     /**
      * Free-Kassa api url.
@@ -178,9 +186,27 @@ class FreeKassaComponent extends Component
         $data = [
             'merchant_id' => $this->merchantId,
             's' => md5($this->merchantId . $this->secondSecret),
+            'action' => self::ACTION_GET_BALANCE,
         ];
 
-        return $this->request();
+        return $this->request($data);
+    }
+
+    /**
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getOrder()
+    {
+        $data = [
+            'merchant_id' => $this->merchantId,
+            's' => md5($this->merchantId . $this->secondSecret),
+            'intid' => 'номер заказа на сервисе free-kassa',
+            'order_id' => 'номер заказа магазина',
+            'action' => self::ACTION_GET_ORDER,
+        ];
+
+        return $this->request($data);
     }
 
     /**
@@ -234,16 +260,7 @@ class FreeKassaComponent extends Component
                 throw new Exception($response->data);
             }
 
-            $result = $response->data;
-            if (!isset($result['result']) || !isset($result['error'])) {
-                throw new Exception('Отсутствуют обязательные элементы массива ответа');
-            }
-
-            if ($result['error'] != 'ok') {
-                throw new Exception($result['error']);
-            }
-
-            return $result['result'];
+            return $response->data;
         } catch (\Exception $exception) {
             \Yii::error([
                 'errorMessage' => $exception->getMessage(),
@@ -342,5 +359,24 @@ class FreeKassaComponent extends Component
     public function getCurrencyName($code): string
     {
         return $this->getCurrencies()[$code];
+    }
+
+    /**
+     * Default request params.
+     * @return array
+     */
+    private function defaultRequestData() : array
+    {
+        return [];
+    }
+
+    /**
+     * Default request headers.
+     * @param string $data
+     * @return array
+     */
+    private function getHeaders(string $data) : array
+    {
+        return [];
     }
 }
