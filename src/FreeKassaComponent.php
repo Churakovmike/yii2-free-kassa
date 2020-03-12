@@ -13,6 +13,7 @@ use \Exception;
  * @package ChurakovMike\Freekassa
  *
  * @property string $baseUrl
+ * @property string $baseFormUrl
  * @property string $merchantId
  * @property string $firstSecret
  * @property string $secondSecret
@@ -107,6 +108,13 @@ class FreeKassaComponent extends Component
     public $baseUrl = 'https://www.free-kassa.ru/api.php';
 
     /**
+     * Url for form action.
+     *
+     * @var string $baseFormUrl
+     */
+    public $baseFormUrl = 'http://www.free-kassa.ru/merchant/cash.php';
+
+    /**
      * Merchant ID. (example: 19999).
      *
      * @var string $merchantId
@@ -196,17 +204,50 @@ class FreeKassaComponent extends Component
      * @return array|Response
      * @throws Exception
      */
-    public function getOrder()
+    public function getOrder($orderId = null, $intId = null)
     {
         $data = [
             'merchant_id' => $this->merchantId,
             's' => md5($this->merchantId . $this->secondSecret),
-            'intid' => 'номер заказа на сервисе free-kassa',
-            'order_id' => 'номер заказа магазина',
             'action' => self::ACTION_GET_ORDER,
         ];
 
+        if (!is_null($orderId)) {
+            $data[] = [
+                'order_id' => $orderId,
+            ];
+        }
+
+        if (!is_null($orderId)) {
+            $data[] = [
+                'intid' => $intId,
+            ];
+        }
+
         return $this->request($data);
+    }
+
+    /**
+     * Generate payment link for redirect user to Free-Kassa.com.
+     *
+     * @param $orderId
+     * @param $sum
+     * @param string $description
+     */
+    public function generatePaymentLink($orderId, $sum, $description = '')
+    {
+        $data = [
+            'o' => $orderId,
+            'oa' => $sum,
+            's' => $this->generateFormSignature($sum, $orderId),
+            'm' => $this->merchantId,
+        ];
+
+        if (!empty($description)) {
+            $data['us_desc'] = $description;
+        }
+
+        return $this->baseFormUrl . "?" . http_build_query($data);
     }
 
     /**
@@ -219,6 +260,18 @@ class FreeKassaComponent extends Component
     public function generateSignature($amount, $orderId): string
     {
         return md5($this->merchantId . ':' . $amount . ':' . $this->secondSecret . ':' . $orderId);
+    }
+
+    /**
+     * Generate signature for form.
+     *
+     * @param $amount
+     * @param $orderId
+     * @return string
+     */
+    public function generateFormSignature($amount, $orderId): string
+    {
+        return md5($this->merchantId . ':' . $amount . ':' . $this->firstSecret . ':' . $orderId);
     }
 
     /**
