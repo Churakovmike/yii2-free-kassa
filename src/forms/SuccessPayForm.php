@@ -76,12 +76,27 @@ class SuccessPayForm extends Model
     public $us_key;
 
     /**
+     * Order description.
+     *
+     * @var string $us_desc
+     */
+    public $us_desc;
+
+    /**
+     * Only for test mode.
+     *
+     * @var string $test_payment
+     */
+    public $test_payment;
+
+    /**
      * @return array
      */
     public function rules()
     {
         return [
-            [['merchant_id', 'amount', 'intid', 'merchant_order_id', 'p_email', 'p_phone', 'cur_id', 'sign'], 'string'],
+            [['merchant_id', 'amount', 'intid', 'merchant_order_id', 'p_email', 'p_phone', 'cur_id', 'sign', 
+                'us_desc', 'test_payment'], 'string'],
             [['merchant_id', 'amount', 'intid', 'merchant_order_id', 'p_email', 'cur_id', 'sign'], 'string'],
             [['us_key'], 'safe'],
         ];
@@ -106,5 +121,15 @@ class SuccessPayForm extends Model
                 }
             }
         }
+    }
+
+    /**
+     * Check is test order callback.
+     *
+     * @return bool
+     */
+    public function isTestOrder(): bool
+    {
+        return (bool)$this->test_payment;
     }
 }

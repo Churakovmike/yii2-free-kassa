@@ -15,6 +15,7 @@ use \Exception;
  * @property string $baseUrl
  * @property string $baseFormUrl
  * @property string $merchantId
+ * @property integer $defaultCurrency
  * @property string $firstSecret
  * @property string $secondSecret
  * @property string $walletId
@@ -26,6 +27,7 @@ class FreeKassaComponent extends Component
      * Codes of available currencies.
      */
     const
+        CURRENCY_TEST = 178,
         CURRENCY_VISA_MASTERCARD_KZT = 186,
         CURRENCY_FK_WALLET_RUB = 133,
         CURRENCY_SBERBANK_RUR = 80,
@@ -143,6 +145,13 @@ class FreeKassaComponent extends Component
     public $walletId;
 
     /**
+     * Default currency for form
+     *
+     * @var integer $defaultCurrency
+     */
+    public $defaultCurrency;
+
+    /**
      * @var Client $_httpClient
      */
     private $_httpClient;
@@ -234,13 +243,16 @@ class FreeKassaComponent extends Component
      * @param $sum
      * @param string $description
      */
-    public function generatePaymentLink($orderId, $sum, $description = '')
+    public function generatePaymentLink($orderId, $sum, $email = '', $description = '')
     {
         $data = [
             'o' => $orderId,
             'oa' => $sum,
             's' => $this->generateFormSignature($sum, $orderId),
             'm' => $this->merchantId,
+            'i' => $this->defaultCurrency,
+            'em' => $email,
+            'lang' => 'ru',
         ];
 
         if (!empty($description)) {
@@ -412,6 +424,16 @@ class FreeKassaComponent extends Component
     public function getCurrencyName($code): string
     {
         return $this->getCurrencies()[$code];
+    }
+
+    /**
+     * Set another default currency value.
+     *
+     * @param $currencyId
+     */
+    public function setCurrency($currencyId): void
+    {
+        $this->defaultCurrency = $currencyId;
     }
 
     /**
