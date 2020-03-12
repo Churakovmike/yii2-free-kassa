@@ -10,7 +10,7 @@ composer require churakovmike/yii2-free-kassa
 ```
 or add to require section
 ```php
-"churakovmike/yii2-free-kassa": "~1.0"
+"churakovmike/yii2-free-kassa": "~1.1"
 ```
 
 ## Add components to config
@@ -49,6 +49,12 @@ $component = \Yii::$app->freeKassaComponent;
 ```php
 /** @var FreeKassaComponent $component */
 $component = \Yii::$app->freeKassaComponent;
-$component->validateSignature($amoint, $orderId, $signature);
+$component->validateSignature($amount, $orderId, $signature);
 ```
 You can take signature from SuccessPayForm in property $form->sign
+### Generate pyment link
+```php
+/** @var FreeKassaComponent $component */
+$component = \Yii::$app->freeKassaComponent;
+$component->generatePaymentLink($orderId, $sum, $description);
+```
