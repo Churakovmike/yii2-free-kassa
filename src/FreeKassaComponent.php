@@ -346,6 +346,7 @@ class FreeKassaComponent extends Component
     public function getCurrencies(): array
     {
         return [
+            self::CURRENCY_TEST => 'Тестовая оплата',
             self::CURRENCY_VISA_MASTERCARD_KZT => 'VISA/MASTERCARD KZT',
             self::CURRENCY_FK_WALLET_RUB => 'FK WALLET RUB',
             self::CURRENCY_SBERBANK_RUR => 'Сбербанк RUR',
