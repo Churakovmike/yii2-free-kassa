@@ -8,7 +8,17 @@ use yii\base\Model;
  * Class SuccessPayForm
  * @package ChurakovMike\Freekassa
  *
+ * @property string $merchant_id
+ * @property string $amount
+ * @property string $intid
+ * @property string $merchant_order_id
+ * @property string $p_email
+ * @property string $p_phone
+ * @property string $cur_id
  * @property string $sign
+ * @property string $us_key
+ * @property string $us_desc
+ * @property string $test_payment
  */
 class SuccessPayForm extends Model
 {
