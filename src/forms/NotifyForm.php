@@ -20,7 +20,7 @@ use yii\base\Model;
  * @property string $us_desc
  * @property string $test_payment
  */
-class SuccessPayForm extends Model
+class NotifyForm extends BaseForm
 {
     /**
      * Shop Id.
@@ -110,27 +110,6 @@ class SuccessPayForm extends Model
             [['merchant_id', 'amount', 'intid', 'merchant_order_id', 'p_email', 'cur_id', 'sign'], 'string'],
             [['us_key'], 'safe'],
         ];
-    }
-
-    /**
-     * Set attribution to model from param with capital letters.
-     *
-     * @param array $values
-     * @param bool $safeOnly
-     */
-    public function setAttributes($values, $safeOnly = true)
-    {
-        if (is_array($values)) {
-            $attributes = array_flip($safeOnly ? $this->safeAttributes() : $this->attributes());
-            $values = array_change_key_case($values, CASE_LOWER);
-            foreach ($values as $name => $value) {
-                if (isset($attributes[$name])) {
-                    $this->$name = $value;
-                } elseif ($safeOnly) {
-                    $this->onUnsafeAttribute($name, $value);
-                }
-            }
-        }
     }
 
     /**
