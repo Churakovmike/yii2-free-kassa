@@ -102,7 +102,8 @@ class FreeKassaComponent extends Component
     const
         ACTION_GET_BALANCE = 'get_balance',
         ACTION_GET_ORDER = 'check_order_status',
-        ACTION_EXPORT_ORDERS = 'get_orders';
+        ACTION_EXPORT_ORDERS = 'get_orders',
+        ACTION_PAYMENT = 'payment';
 
     const
         ORDER_STATUS_NEW = 'new',
@@ -237,15 +238,11 @@ class FreeKassaComponent extends Component
         ];
 
         if (!is_null($orderId)) {
-            $data[] = [
-                'order_id' => $orderId,
-            ];
+            $data['order_id'] = $orderId;
         }
 
         if (!is_null($orderId)) {
-            $data[] = [
-                'intid' => $intId,
-            ];
+            $data['intid'] = $intId;
         }
 
         return $this->request($data);
@@ -281,6 +278,49 @@ class FreeKassaComponent extends Component
         ];
 
         return $this->request($data, $this->baseExportOrdersUrl, 'GET');
+    }
+
+    /**
+     * Withdraw money.
+     *
+     * @param $amount
+     * @return array|Response
+     * @throws Exception
+     */
+    public function withdraw($amount, $currency = null)
+    {
+        $data = [
+            'merchant_id' => $this->merchantId,
+            'currency' => $currency ?? $this->defaultCurrency,
+            'amount' => $amount,
+            's' => $this->generateApiSignature(),
+            'action' => self::ACTION_PAYMENT,
+        ];
+
+        return $this->request($data);
+    }
+
+    /**
+     * Create invoice.
+     *
+     * @param string $email
+     * @param mixed $amount
+     * @param mixed $orderId
+     * @return array|Response
+     * @throws Exception
+     */
+    public function invoice(string $email, $amount, $description)
+    {
+        $data = [
+            'merchant_id' => $this->merchantId,
+            'email' => $email,
+            'amount' => $amount,
+            'desc' => urlencode($description),
+            's' => $this->generateApiSignature(),
+            'action' => self::ACTION_PAYMENT,
+        ];
+
+        return $this->request($data);
     }
 
     /**
