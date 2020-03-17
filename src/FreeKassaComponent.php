@@ -14,6 +14,7 @@ use \Exception;
  *
  * @property string $baseUrl
  * @property string $baseFormUrl
+ * @property string $baseExportOrdersUrl
  * @property string $merchantId
  * @property integer $defaultCurrency
  * @property string $firstSecret
@@ -100,7 +101,14 @@ class FreeKassaComponent extends Component
      */
     const
         ACTION_GET_BALANCE = 'get_balance',
-        ACTION_GET_ORDER = 'check_order_status';
+        ACTION_GET_ORDER = 'check_order_status',
+        ACTION_EXPORT_ORDERS = 'get_orders';
+
+    const
+        ORDER_STATUS_NEW = 'new',
+        ORDER_STATUS_PAID = 'paid',
+        ORDER_STATUS_COMPLETED = 'completed',
+        ORDER_STATUS_ALL = 'all';
 
     /**
      * Free-Kassa api url.
@@ -115,6 +123,13 @@ class FreeKassaComponent extends Component
      * @var string $baseFormUrl
      */
     public $baseFormUrl = 'http://www.free-kassa.ru/merchant/cash.php';
+
+    /**
+     * Url for exports orders list.
+     *
+     * @var string
+     */
+    public $baseExportOrdersUrl = 'https://www.free-kassa.ru/export.php';
 
     /**
      * Merchant ID. (example: 19999).
@@ -202,7 +217,7 @@ class FreeKassaComponent extends Component
     {
         $data = [
             'merchant_id' => $this->merchantId,
-            's' => md5($this->merchantId . $this->secondSecret),
+            's' => $this->generateApiSignature(),
             'action' => self::ACTION_GET_BALANCE,
         ];
 
@@ -234,6 +249,38 @@ class FreeKassaComponent extends Component
         }
 
         return $this->request($data);
+    }
+
+    /**
+     * Get orders list.
+     *
+     * @param int $limit
+     * @param int $offset
+     * @param string $status
+     * @param string $date_from
+     * @param string $date_to
+     * @return array|Response
+     * @throws Exception
+     */
+    public function exportOrders(
+        int $limit = 100,
+        int $offset = 0,
+        string $status = self::ORDER_STATUS_ALL,
+        string $date_from = '',
+        string $date_to = ''
+    ) {
+        $data = [
+            'merchant_id' => $this->merchantId,
+            's' => $this->generateApiSignature(),
+            'action' => self::ACTION_EXPORT_ORDERS,
+            'date_from' => $date_from,
+            'date_to' => $date_to,
+            'status' => $status,
+            'limit' => $limit,
+            'offest' => $offset,
+        ];
+
+        return $this->request($data, $this->baseExportOrdersUrl, 'GET');
     }
 
     /**
@@ -287,6 +334,14 @@ class FreeKassaComponent extends Component
     }
 
     /**
+     * @return string
+     */
+    public function generateApiSignature(): string
+    {
+        return md5($this->merchantId . $this->secondSecret);
+    }
+
+    /**
      * Validate signature.
      *
      * @param $amount
@@ -312,14 +367,13 @@ class FreeKassaComponent extends Component
      * @throws \Exception
      * @return Response|array
      */
-    protected function request(array $data, $options = [])
+    protected function request(array $data, $url = null, $method = 'POST', $options = [])
     {
         $fullData = array_merge($this->defaultRequestData(), $data);
         $rowData = http_build_query($fullData);
-        $headers = $this->getHeaders($rowData);
 
         try {
-            $request = $this->httpClient->post($this->httpClient->baseUrl, $rowData, $headers, $options);
+            $request = $this->httpClient->$method($url ?? $this->httpClient->baseUrl, $fullData);
             $response = $request->send();
             if (!$response->isOk) {
                 throw new Exception($response->data);
@@ -331,7 +385,6 @@ class FreeKassaComponent extends Component
                 'errorMessage' => $exception->getMessage(),
                 'data' => $fullData,
                 'dataRow' => $rowData,
-                'headers' => $headers
             ]);
 
             throw $exception;
@@ -442,16 +495,6 @@ class FreeKassaComponent extends Component
      * @return array
      */
     private function defaultRequestData() : array
-    {
-        return [];
-    }
-
-    /**
-     * Default request headers.
-     * @param string $data
-     * @return array
-     */
-    private function getHeaders(string $data) : array
     {
         return [];
     }
