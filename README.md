@@ -13,7 +13,7 @@ composer require churakovmike/yii2-free-kassa
 ```
 or add to require section
 ```php
-"churakovmike/yii2-free-kassa": "~1.1"
+"churakovmike/yii2-free-kassa": "~1.3"
 ```
 
 ## Add components to config
