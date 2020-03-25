@@ -2,6 +2,7 @@
 
 namespace ChurakovMike\Freekassa;
 
+use ChurakovMike\Freekassa\exceptions\WrongCurrenciesException;
 use ChurakovMike\Freekassa\exceptions\WrongSignatureException;
 use yii\base\Component;
 use yii\httpclient\Client;
@@ -15,11 +16,13 @@ use \Exception;
  * @property string $baseUrl
  * @property string $baseFormUrl
  * @property string $baseExportOrdersUrl
+ * @property string $walletApiUrl
  * @property string $merchantId
  * @property integer $defaultCurrency
  * @property string $firstSecret
  * @property string $secondSecret
  * @property string $walletId
+ * @property string $walletApiKey
  * @property Client $httpClient
  */
 class FreeKassaComponent extends Component
@@ -97,13 +100,58 @@ class FreeKassaComponent extends Component
         CURRENCY_MOBILE_MEGAFON_CENTRAL_FILIAL = 143;
 
     /**
+     * List of available currencies for wallet.
+     */
+    const WALLET_CURRENCIES = [
+        self::CURRENCY_FK_WALLET_RUB,
+        self::CURRENCY_QIWI_WMR,
+        self::CURRENCY_QIWI_EURO,
+        self::CURRENCY_QIWI_USD,
+        self::CURRENCY_YANDEX_MONEY_FIRST,
+        self::CURRENCY_QIWI_KZT,
+        self::CURRENCY_CASA_MASTERCARD_RUB,
+        self::CURRENCY_VISA_MASTERCARD_USD,
+        self::CURRENCY_VISA_MASTERCARD_EUR,
+        self::CURRENCY_VISA_MASTERCARD_UAH,
+        self::CURRENCY_ADVCASH_USD,
+        self::CURRENCY_ADVCASH_RUB,
+        self::CURRENCY_EXMO_USD,
+        self::CURRENCY_WEBMONEY_WMZ,
+        self::CURRENCY_PAYEER_RUB,
+        self::CURRENCY_PAYEER_USD,
+        self::CURRENCY_PERFECT_MONEY_USD,
+        self::CURRENCY_PERFECT_MONEY_EUR,
+        self::CURRENCY_MOBILE_MEGAFON,
+        self::CURRENCY_MOBILE_MTS,
+        self::CURRENCY_MOBILE_TELE2,
+        self::CURRENCY_MOBILE_BEELINE,
+        self::CURRENCY_PAYPAL,
+    ];
+
+    /**
      * List of available actions.
      */
     const
         ACTION_GET_BALANCE = 'get_balance',
         ACTION_GET_ORDER = 'check_order_status',
         ACTION_EXPORT_ORDERS = 'get_orders',
-        ACTION_PAYMENT = 'payment';
+        ACTION_PAYMENT = 'payment',
+        ACTION_CREATE_BILL = 'create_bill',
+        ACTION_WALLET_WITHDRAW = 'cashout',
+        ACTION_OPERATION_STATUS = 'get_payment_status',
+        ACTION_TRANSFER_MONEY = 'transfer',
+        ACTION_ONLINE_PAYMENT = 'online_payment',
+        ACTION_PROVIDERS = 'providers',
+        ACTION_CHECK_ONLINE_PAYMENT = 'check_online_payment',
+        ACTION_CREATE_BTC_ADDRESS = 'create_btc_address',
+        ACTION_CREATE_LTC_ADDRESS = 'create_ltc_address',
+        ACTION_CREATE_ETH_ADDRESS = 'create_eth_address',
+        ACTION_GET_BTC_ADDRESS = 'get_btc_address',
+        ACTION_GET_LTC_ADDRESS = 'get_ltc_address',
+        ACTION_GET_ETH_ADDRESS = 'get_eth_address',
+        ACTION_GET_BTC_TRANSACTION = 'get_btc_transaction',
+        ACTION_GET_LTC_TRANSACTION = 'get_ltc_transaction',
+        ACTION_GET_ETH_TRANSACTION = 'get_eth_transaction';
 
     const
         ORDER_STATUS_NEW = 'new',
@@ -131,6 +179,13 @@ class FreeKassaComponent extends Component
      * @var string
      */
     public $baseExportOrdersUrl = 'https://www.free-kassa.ru/export.php';
+
+    /**
+     * Api url for wallet requests.
+     * 
+     * @var string 
+     */
+    public $walletApiUrl = 'https://www.fkwallet.ru/api_v1.php';
 
     /**
      * Merchant ID. (example: 19999).
@@ -166,6 +221,14 @@ class FreeKassaComponent extends Component
      * @var integer $defaultCurrency
      */
     public $defaultCurrency;
+
+    /**
+     * Api key can be generate on the next link.
+     * @see https://www.fkwallet.ru/settings
+     *
+     * @var string $walletApiKey
+     */
+    public $walletApiKey;
 
     /**
      * @var Client $_httpClient
@@ -317,10 +380,310 @@ class FreeKassaComponent extends Component
             'amount' => $amount,
             'desc' => urlencode($description),
             's' => $this->generateApiSignature(),
-            'action' => self::ACTION_PAYMENT,
+            'action' => self::ACTION_CREATE_BILL,
         ];
 
         return $this->request($data);
+    }
+
+    /**
+     * Get wallet balance.
+     *
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getWalletBalance()
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'sign' => $this->generateWalletSignature(),
+            'action' => self::ACTION_GET_BALANCE,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Withdraw money from wallet.
+     *
+     * @param string $purse
+     * @param $amount
+     * @param $currency
+     * @param string $desc
+     * @param int $disableExchange
+     * @return array|Response
+     * @throws Exception
+     * @throws WrongCurrenciesException
+     */
+    public function walletWithdraw(string $purse, $amount, $currency, string $desc = '', $disableExchange = 1)
+    {
+        if (!in_array($currency, self::WALLET_CURRENCIES)) {
+            throw new WrongCurrenciesException();
+        }
+
+        $data = [
+            'wallet_id' => $this->walletId,
+            'purse' => $purse,
+            'amount' => $amount,
+            'desc' => $desc,
+            'disable_exchange' => $disableExchange,
+            'currency' => $currency,
+            'sign' => md5($this->walletId . $currency . $amount . $purse . $this->walletApiKey),
+            'action' => self::ACTION_WALLET_WITHDRAW,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Get operation status.
+     *
+     * @param $paymentId
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getOperationStatus($paymentId)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'payment_id' => $paymentId,
+            'sign' => md5($this->walletId . $paymentId . $this->walletApiKey),
+            'action' => self::ACTION_OPERATION_STATUS,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Transfer money to other wallet.
+     *
+     * @param $purse
+     * @param $amount
+     * @return array|Response
+     * @throws Exception
+     */
+    public function transferMoney($purse, $amount)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'purse' => $purse,
+            'amount' => $amount,
+            'sign' => md5($this->walletId . $purse . $amount . $this->walletApiKey),
+            'action' => self::ACTION_TRANSFER_MONEY,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Payment online services.
+     *
+     * @param $serviceId
+     * @param $account
+     * @param $amount
+     * @return array|Response
+     * @throws Exception
+     */
+    public function onlinePayment($serviceId, $account, $amount)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'service_id' => $serviceId,
+            'account' => $account,
+            'amount' => $amount,
+            'sign' => md5($this->walletId . $amount . $account . $this->walletApiKey),
+            'action' => self::ACTION_ONLINE_PAYMENT,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Get list of payment services.
+     *
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getOnlineServices()
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'sign' => $this->generateWalletSignature(),
+            'action' => self::ACTION_PROVIDERS,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Check status online payment.
+     *
+     * @param $paymentId
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getOnlinePaymentStatus($paymentId)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'payment_id' => $paymentId,
+            'sign' => md5($this->walletId . $paymentId . $this->walletApiKey),
+            'action' => self::ACTION_CHECK_ONLINE_PAYMENT,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Create BTC address.
+     *
+     * @return array|Response
+     */
+    public function createBTCAddress()
+    {
+        return $this->createCryptoAddress(self::ACTION_CREATE_BTC_ADDRESS);
+    }
+
+    /**
+     * Create LTC address.
+     *
+     * @return array|Response
+     */
+    public function createLTCAddress()
+    {
+        return $this->createCryptoAddress(self::ACTION_CREATE_LTC_ADDRESS);
+    }
+
+    /**
+     * Create ETH address.
+     *
+     * @return array|Response
+     */
+    public function createETHAddress()
+    {
+        return $this->createCryptoAddress(self::ACTION_CREATE_ETH_ADDRESS);
+    }
+
+    /**
+     * Create crypto wallet address.
+     *
+     * @param $action
+     * @return array|Response
+     * @throws Exception
+     */
+    public function createCryptoAddress($action)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'sign' => $this->generateWalletSignature(),
+            'action' => $action,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Get BTC address.
+     *
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getBTCAddress()
+    {
+        return $this->getCryptoAddress(self::ACTION_GET_BTC_ADDRESS);
+    }
+
+    /**
+     * Get LTC address.
+     *
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getLTCAddress()
+    {
+        return $this->getCryptoAddress(self::ACTION_GET_LTC_ADDRESS);
+    }
+
+    /**
+     * GET ETH address.
+     *
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getETHAddress()
+    {
+        return $this->getCryptoAddress(self::ACTION_GET_ETH_ADDRESS);
+    }
+
+    /**
+     * Get crypto address by action.
+     *
+     * @param $action
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getCryptoAddress($action)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'sign' => $this->generateWalletSignature(),
+            'action' => $action,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
+    }
+
+    /**
+     * Get information about BTC transaction.
+     *
+     * @param $transactionId
+     * @return array|Response
+     */
+    public function getBTCTransaction($transactionId)
+    {
+        return $this->getTransaction(self::ACTION_GET_BTC_TRANSACTION, $transactionId);
+    }
+
+    /**
+     * Get information about LTC transaction.
+     *
+     * @param $transactionId
+     * @return array|Response
+     */
+    public function getLTCTransaction($transactionId)
+    {
+        return $this->getTransaction(self::ACTION_GET_LTC_TRANSACTION, $transactionId);
+    }
+
+    /**
+     * Get information about ETH transaction.
+     *
+     * @param $transactionId
+     * @return array|Response
+     */
+    public function getETHTransaction($transactionId)
+    {
+        return $this->getTransaction(self::ACTION_GET_ETH_TRANSACTION, $transactionId);
+    }
+
+    /**
+     * Get information about transaction by action.
+     * 
+     * @param $action
+     * @param $transactionId
+     * @return array|Response
+     * @throws Exception
+     */
+    public function getTransaction($action, $transactionId)
+    {
+        $data = [
+            'wallet_id' => $this->walletId,
+            'transaction_id' => $transactionId,
+            'sign' => md5($this->walletId . $transactionId . $this->walletApiKey),
+            'action' => $action,
+        ];
+
+        return $this->request($data, $this->walletApiUrl, 'POST');
     }
 
     /**
@@ -359,6 +722,16 @@ class FreeKassaComponent extends Component
     public function generateSignature($amount, $orderId): string
     {
         return md5($this->merchantId . ':' . $amount . ':' . $this->secondSecret . ':' . $orderId);
+    }
+
+    /**
+     * Generate signature to wallet requests.
+     *
+     * @return string
+     */
+    public function generateWalletSignature(): string
+    {
+        return md5($this->walletId . $this->walletApiKey);
     }
 
     /**
