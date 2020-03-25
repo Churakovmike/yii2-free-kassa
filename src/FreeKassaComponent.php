@@ -455,7 +455,7 @@ class FreeKassaComponent extends Component
     }
 
     /**
-     * Transfer money to other wallet.
+     * Transfer money to another wallet.
      *
      * @param $purse
      * @param $amount
